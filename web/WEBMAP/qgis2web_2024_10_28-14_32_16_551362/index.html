@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/L.Control.Locate.min.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet-control-geocoder.Geocoder.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title>NEDUMANGAD TALUK OF KERALA</title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/L.Control.Locate.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet-control-geocoder.Geocoder.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+        <script src="js/proj4.js"></script>
+        <script src="js/proj4leaflet.js"></script>
+        <script src="data/NedumangadTaluk_1.js"></script>
+        <script src="data/Soil_2.js"></script>
+        <script src="data/Geomorphology_3.js"></script>
+        <script src="data/Road_4.js"></script>
+        <script src="data/Drainage_5.js"></script>
+        <script src="data/JUNCTIONS_6.js"></script>
+        <script>
+        var highlightLayer;
+        function highlightFeature(e) {
+            highlightLayer = e.target;
+
+            if (e.target.feature.geometry.type === 'LineString' || e.target.feature.geometry.type === 'MultiLineString') {
+              highlightLayer.setStyle({
+                color: '#ffff00',
+              });
+            } else {
+              highlightLayer.setStyle({
+                fillColor: '#ffff00',
+                fillOpacity: 1
+              });
+            }
+            highlightLayer.openPopup();
+        }
+        var crs = new L.Proj.CRS('EPSG:32643', '+proj=utm +zone=43 +datum=WGS84 +units=m +no_defs', {
+            resolutions: [2800, 1400, 700, 350, 175, 84, 42, 21, 11.2, 5.6, 2.8, 1.4, 0.7, 0.35, 0.14, 0.07],
+        });
+        var map = L.map('map', {
+            crs: crs,
+            continuousWorld: false,
+            worldCopyJump: false, 
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[8.519322129144967,76.67309589558717],[8.911124039257022,77.57362911390089]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // add class to format popup if it contains media
+		function addClassToPopupIfMedia(content, popup) {
+			var tempDiv = document.createElement('div');
+			tempDiv.innerHTML = content;
+			if (tempDiv.querySelector('td img')) {
+				popup._contentNode.classList.add('media');
+					// Delay to force the redraw
+					setTimeout(function() {
+						popup.update();
+					}, 10);
+			} else {
+				popup._contentNode.classList.remove('media');
+			}
+		}
+        var title = new L.Control({'position':'topright'});
+        title.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+        title.update = function () {
+            this._div.innerHTML = '<h2>NEDUMANGAD TALUK OF KERALA</h2>';
+        };
+        title.addTo(map);
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        L.control.locate({locateOptions: {maxZoom: 19}}).addTo(map);
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].className += ' fas fa-ruler';
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        map.createPane('pane_OSMStandard_0');
+        map.getPane('pane_OSMStandard_0').style.zIndex = 400;
+        var layer_OSMStandard_0 = L.tileLayer('http://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            pane: 'pane_OSMStandard_0',
+            opacity: 1.0,
+            attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors, CC-BY-SA</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 19
+        });
+        layer_OSMStandard_0;
+        map.addLayer(layer_OSMStandard_0);
+        function pop_NedumangadTaluk_1(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">AREA</th>\
+                        <td>' + (feature.properties['AREA'] !== null ? autolinker.link(feature.properties['AREA'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">TALUK</th>\
+                        <td>' + (feature.properties['TALUK'] !== null ? autolinker.link(feature.properties['TALUK'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">DISTRICT</th>\
+                        <td>' + (feature.properties['DISTRICT'] !== null ? autolinker.link(feature.properties['DISTRICT'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_NedumangadTaluk_1_0() {
+            return {
+                pane: 'pane_NedumangadTaluk_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_NedumangadTaluk_1');
+        map.getPane('pane_NedumangadTaluk_1').style.zIndex = 401;
+        map.getPane('pane_NedumangadTaluk_1').style['mix-blend-mode'] = 'normal';
+        var layer_NedumangadTaluk_1 = new L.geoJson(json_NedumangadTaluk_1, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_NedumangadTaluk_1',
+            layerName: 'layer_NedumangadTaluk_1',
+            pane: 'pane_NedumangadTaluk_1',
+            onEachFeature: pop_NedumangadTaluk_1,
+            style: style_NedumangadTaluk_1_0,
+        });
+        bounds_group.addLayer(layer_NedumangadTaluk_1);
+        map.addLayer(layer_NedumangadTaluk_1);
+        function pop_Soil_2(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">AREA</th>\
+                        <td>' + (feature.properties['AREA'] !== null ? autolinker.link(feature.properties['AREA'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">PERIMETER</th>\
+                        <td>' + (feature.properties['PERIMETER'] !== null ? autolinker.link(feature.properties['PERIMETER'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">KERSOIL_</th>\
+                        <td>' + (feature.properties['KERSOIL_'] !== null ? autolinker.link(feature.properties['KERSOIL_'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">KERSOIL_ID</th>\
+                        <td>' + (feature.properties['KERSOIL_ID'] !== null ? autolinker.link(feature.properties['KERSOIL_ID'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">CODE</th>\
+                        <td>' + (feature.properties['CODE'] !== null ? autolinker.link(feature.properties['CODE'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">MAP_SYMBOL</th>\
+                        <td>' + (feature.properties['MAP_SYMBOL'] !== null ? autolinker.link(feature.properties['MAP_SYMBOL'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">DEPTH</th>\
+                        <td>' + (feature.properties['DEPTH'] !== null ? autolinker.link(feature.properties['DEPTH'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">TEXTURE</th>\
+                        <td>' + (feature.properties['TEXTURE'] !== null ? autolinker.link(feature.properties['TEXTURE'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">SLOPE</th>\
+                        <td>' + (feature.properties['SLOPE'] !== null ? autolinker.link(feature.properties['SLOPE'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">DRAINAGE</th>\
+                        <td>' + (feature.properties['DRAINAGE'] !== null ? autolinker.link(feature.properties['DRAINAGE'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Soil_2_0(feature) {
+            switch(String(feature.properties['TEXTURE'])) {
+                case 'clay':
+                    return {
+                pane: 'pane_Soil_2',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,137,202,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'gravelly clay':
+                    return {
+                pane: 'pane_Soil_2',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(242,255,57,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'gravelly loam':
+                    return {
+                pane: 'pane_Soil_2',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,143,150,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'loam':
+                    return {
+                pane: 'pane_Soil_2',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(138,255,109,1.0)',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_Soil_2',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(25,197,203,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_Soil_2');
+        map.getPane('pane_Soil_2').style.zIndex = 402;
+        map.getPane('pane_Soil_2').style['mix-blend-mode'] = 'normal';
+        var layer_Soil_2 = new L.geoJson(json_Soil_2, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Soil_2',
+            layerName: 'layer_Soil_2',
+            pane: 'pane_Soil_2',
+            onEachFeature: pop_Soil_2,
+            style: style_Soil_2_0,
+        });
+        bounds_group.addLayer(layer_Soil_2);
+        map.addLayer(layer_Soil_2);
+        function pop_Geomorphology_3(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">NAME</th>\
+                        <td>' + (feature.properties['NAME'] !== null ? autolinker.link(feature.properties['NAME'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">TYPE1</th>\
+                        <td>' + (feature.properties['TYPE1'] !== null ? autolinker.link(feature.properties['TYPE1'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">TYPE2</th>\
+                        <td>' + (feature.properties['TYPE2'] !== null ? autolinker.link(feature.properties['TYPE2'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Geomorphology_3_0(feature) {
+            switch(String(feature.properties['TYPE1'])) {
+                case 'Denudational Hills':
+                    return {
+                pane: 'pane_Geomorphology_3',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(235,118,165,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Denudational Structural Hills':
+                    return {
+                pane: 'pane_Geomorphology_3',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(51,255,228,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Pediplain':
+                    return {
+                pane: 'pane_Geomorphology_3',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(53,255,87,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Piedmont Zone':
+                    return {
+                pane: 'pane_Geomorphology_3',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(236,157,111,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Plateau':
+                    return {
+                pane: 'pane_Geomorphology_3',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(249,255,73,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Residual Hill':
+                    return {
+                pane: 'pane_Geomorphology_3',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,133,233,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Water Body':
+                    return {
+                pane: 'pane_Geomorphology_3',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(194,210,77,1.0)',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_Geomorphology_3',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(176,33,201,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_Geomorphology_3');
+        map.getPane('pane_Geomorphology_3').style.zIndex = 403;
+        map.getPane('pane_Geomorphology_3').style['mix-blend-mode'] = 'normal';
+        var layer_Geomorphology_3 = new L.geoJson(json_Geomorphology_3, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Geomorphology_3',
+            layerName: 'layer_Geomorphology_3',
+            pane: 'pane_Geomorphology_3',
+            onEachFeature: pop_Geomorphology_3,
+            style: style_Geomorphology_3_0,
+        });
+        bounds_group.addLayer(layer_Geomorphology_3);
+        map.addLayer(layer_Geomorphology_3);
+        function pop_Road_4(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">NAME</th>\
+                        <td>' + (feature.properties['NAME'] !== null ? autolinker.link(feature.properties['NAME'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Length</th>\
+                        <td>' + (feature.properties['Length'] !== null ? autolinker.link(feature.properties['Length'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Road_4_0() {
+            return {
+                pane: 'pane_Road_4',
+                opacity: 1,
+                color: 'rgba(224,18,15,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Road_4');
+        map.getPane('pane_Road_4').style.zIndex = 404;
+        map.getPane('pane_Road_4').style['mix-blend-mode'] = 'normal';
+        var layer_Road_4 = new L.geoJson(json_Road_4, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Road_4',
+            layerName: 'layer_Road_4',
+            pane: 'pane_Road_4',
+            onEachFeature: pop_Road_4,
+            style: style_Road_4_0,
+        });
+        bounds_group.addLayer(layer_Road_4);
+        map.addLayer(layer_Road_4);
+        function pop_Drainage_5(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">ORDER1</th>\
+                        <td>' + (feature.properties['ORDER1'] !== null ? autolinker.link(feature.properties['ORDER1'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Drainage_5_0(feature) {
+            switch(String(feature.properties['ORDER1'])) {
+                case '0':
+                    return {
+                pane: 'pane_Drainage_5',
+                opacity: 1,
+                color: 'rgba(38,34,103,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case '1':
+                    return {
+                pane: 'pane_Drainage_5',
+                opacity: 1,
+                color: 'rgba(53,70,127,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case '2':
+                    return {
+                pane: 'pane_Drainage_5',
+                opacity: 1,
+                color: 'rgba(68,107,152,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case '3':
+                    return {
+                pane: 'pane_Drainage_5',
+                opacity: 1,
+                color: 'rgba(84,144,176,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case '4':
+                    return {
+                pane: 'pane_Drainage_5',
+                opacity: 1,
+                color: 'rgba(99,181,200,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                case '5':
+                    return {
+                pane: 'pane_Drainage_5',
+                opacity: 1,
+                color: 'rgba(114,218,224,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_Drainage_5',
+                opacity: 1,
+                color: 'rgba(129,255,249,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_Drainage_5');
+        map.getPane('pane_Drainage_5').style.zIndex = 405;
+        map.getPane('pane_Drainage_5').style['mix-blend-mode'] = 'normal';
+        var layer_Drainage_5 = new L.geoJson(json_Drainage_5, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Drainage_5',
+            layerName: 'layer_Drainage_5',
+            pane: 'pane_Drainage_5',
+            onEachFeature: pop_Drainage_5,
+            style: style_Drainage_5_0,
+        });
+        bounds_group.addLayer(layer_Drainage_5);
+        map.addLayer(layer_Drainage_5);
+        function pop_JUNCTIONS_6(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['id'] !== null ? autolinker.link(feature.properties['id'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Junctions</th>\
+                        <td>' + (feature.properties['Junctions'] !== null ? autolinker.link(feature.properties['Junctions'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">LONGITUDE</th>\
+                        <td>' + (feature.properties['LONGITUDE'] !== null ? autolinker.link(feature.properties['LONGITUDE'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">LATITUDE</th>\
+                        <td>' + (feature.properties['LATITUDE'] !== null ? autolinker.link(feature.properties['LATITUDE'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">IMAGE</th>\
+                        <td>' + (feature.properties['IMAGE'] !== null ? '<img src="images/' + String(feature.properties['IMAGE']).replace(/[\\\/:]/g, '_').trim() + '">' : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_JUNCTIONS_6_0() {
+            return {
+                pane: 'pane_JUNCTIONS_6',
+                radius: 8.0,
+                opacity: 1,
+                color: 'rgba(250,235,53,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 2.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,87,57,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_JUNCTIONS_6');
+        map.getPane('pane_JUNCTIONS_6').style.zIndex = 406;
+        map.getPane('pane_JUNCTIONS_6').style['mix-blend-mode'] = 'normal';
+        var layer_JUNCTIONS_6 = new L.geoJson(json_JUNCTIONS_6, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_JUNCTIONS_6',
+            layerName: 'layer_JUNCTIONS_6',
+            pane: 'pane_JUNCTIONS_6',
+            onEachFeature: pop_JUNCTIONS_6,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_JUNCTIONS_6_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_JUNCTIONS_6);
+        map.addLayer(layer_JUNCTIONS_6);
+        var osmGeocoder = new L.Control.Geocoder({
+            collapsed: true,
+            position: 'topleft',
+            text: 'Search',
+            title: 'Testing'
+        }).addTo(map);
+        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
+        .className += ' fa fa-search';
+        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
+        .title += 'Search for a place';
+        var baseMaps = {};
+        var overlaysTree = [
+            {label: '<img src="legend/JUNCTIONS_6.png" /> JUNCTIONS', layer: layer_JUNCTIONS_6},
+            {label: 'Drainage<br /><table><tr><td style="text-align: center;"><img src="legend/Drainage_5_00.png" /></td><td>0</td></tr><tr><td style="text-align: center;"><img src="legend/Drainage_5_11.png" /></td><td>1</td></tr><tr><td style="text-align: center;"><img src="legend/Drainage_5_22.png" /></td><td>2</td></tr><tr><td style="text-align: center;"><img src="legend/Drainage_5_33.png" /></td><td>3</td></tr><tr><td style="text-align: center;"><img src="legend/Drainage_5_44.png" /></td><td>4</td></tr><tr><td style="text-align: center;"><img src="legend/Drainage_5_55.png" /></td><td>5</td></tr><tr><td style="text-align: center;"><img src="legend/Drainage_5_6.png" /></td><td></td></tr></table>', layer: layer_Drainage_5},
+            {label: '<img src="legend/Road_4.png" /> Road', layer: layer_Road_4},
+            {label: 'Geomorphology<br /><table><tr><td style="text-align: center;"><img src="legend/Geomorphology_3_DenudationalHills0.png" /></td><td>Denudational Hills</td></tr><tr><td style="text-align: center;"><img src="legend/Geomorphology_3_DenudationalStructuralHills1.png" /></td><td>Denudational Structural Hills</td></tr><tr><td style="text-align: center;"><img src="legend/Geomorphology_3_Pediplain2.png" /></td><td>Pediplain</td></tr><tr><td style="text-align: center;"><img src="legend/Geomorphology_3_PiedmontZone3.png" /></td><td>Piedmont Zone</td></tr><tr><td style="text-align: center;"><img src="legend/Geomorphology_3_Plateau4.png" /></td><td>Plateau</td></tr><tr><td style="text-align: center;"><img src="legend/Geomorphology_3_ResidualHill5.png" /></td><td>Residual Hill</td></tr><tr><td style="text-align: center;"><img src="legend/Geomorphology_3_WaterBody6.png" /></td><td>Water Body</td></tr><tr><td style="text-align: center;"><img src="legend/Geomorphology_3_7.png" /></td><td></td></tr></table>', layer: layer_Geomorphology_3},
+            {label: 'Soil<br /><table><tr><td style="text-align: center;"><img src="legend/Soil_2_clay0.png" /></td><td>clay</td></tr><tr><td style="text-align: center;"><img src="legend/Soil_2_gravellyclay1.png" /></td><td>gravelly clay</td></tr><tr><td style="text-align: center;"><img src="legend/Soil_2_gravellyloam2.png" /></td><td>gravelly loam</td></tr><tr><td style="text-align: center;"><img src="legend/Soil_2_loam3.png" /></td><td>loam</td></tr><tr><td style="text-align: center;"><img src="legend/Soil_2_4.png" /></td><td></td></tr></table>', layer: layer_Soil_2},
+            {label: '<img src="legend/NedumangadTaluk_1.png" /> Nedumangad Taluk', layer: layer_NedumangadTaluk_1},
+            {label: "OSM Standard", layer: layer_OSMStandard_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true,
+        });
+        lay.addTo(map);
+        setBounds();
+        </script>
+    </body>
+</html>
